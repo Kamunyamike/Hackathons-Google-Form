@@ -10,4 +10,5 @@ create table if not exists public.responses (
 create index if not exists responses_created_at_idx
     on public.responses (created_at);
 
+
 alter table public.responses enable row level security;
