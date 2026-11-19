@@ -1,5 +1,6 @@
 import unittest
 from copy import deepcopy
+import json
 from unittest.mock import patch
 
 from lib.form import (
@@ -194,11 +195,16 @@ class StorageMappingTests(unittest.TestCase):
                     "private-edit-token",
                     is_edit=False,
                 )
+                client.rows.append(("not", "a row dict"))
                 records = get_response_records()
         finally:
             get_response_records.clear()
 
         self.assertEqual(len(records), 1)
+        self.assertIsInstance(records, list)
+        self.assertTrue(all(isinstance(record, dict) for record in records))
+        self.assertEqual(records[0]["Full Name"], "Test")
+        self.assertIn("Timestamp", records[0])
         self.assertEqual(records[0]["Response ID"], "response-id")
         self.assertNotIn("Edit Token", records[0])
 
@@ -231,6 +237,41 @@ class StorageMappingTests(unittest.TestCase):
             ["retained"] * len(TRACKER_FOLLOW_UP_HEADERS),
         )
 
+    def test_records_parse_json_string_fields(self):
+        client = FakeSupabaseClient()
+        client.rows.append(
+            {
+                "response_id": "response-id",
+                "record": json.dumps(
+                    {
+                        "Timestamp": "18/11/2026 12:00:00",
+                        "Full Name": "Test",
+                        "Response ID": "response-id",
+                        "Which opportunity are you interested in?": OPPORTUNITY_OPTIONS[0],
+                    }
+                ),
+                "follow_up": json.dumps(
+                    {header: "retained" for header in TRACKER_FOLLOW_UP_HEADERS}
+                ),
+            }
+        )
+        get_response_records.clear()
+        get_tracker_records.clear()
+        try:
+            with patch("lib.storage.get_client", return_value=client):
+                response_records = get_response_records()
+                tracker_records = get_tracker_records()
+        finally:
+            get_response_records.clear()
+            get_tracker_records.clear()
+
+        self.assertEqual(response_records[0]["Full Name"], "Test")
+        self.assertEqual(response_records[0]["Response ID"], "response-id")
+        self.assertEqual(
+            [tracker_records[0][header] for header in TRACKER_FOLLOW_UP_HEADERS],
+            ["retained"] * len(TRACKER_FOLLOW_UP_HEADERS),
+        )
+
     def test_pdf_downloads_return_pdf_documents(self):
         record = {
             "Full Name": "Test Person",
@@ -254,6 +295,9 @@ class StorageMappingTests(unittest.TestCase):
 class FakeSupabaseResponse:
     def __init__(self, data):
         self.data = data
+
+    def __iter__(self):
+        return iter((("data", self.data),))
 
 
 class FakeSupabaseClient:

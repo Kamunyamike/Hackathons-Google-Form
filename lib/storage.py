@@ -1,6 +1,7 @@
 """Supabase persistence for form submissions and the admin tracker."""
 
 from datetime import datetime, timezone
+import json
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -108,7 +109,7 @@ def get_client() -> Client:
 
 def _execute(query):
     try:
-        result = query.execute()
+        response = query.execute()
     except APIError as error:
         code = str(getattr(error, "code", ""))
         if code in ("401", "403", "42501", "PGRST301"):
@@ -126,7 +127,7 @@ def _execute(query):
         raise StorageError(
             "Supabase is temporarily unavailable. Please try again shortly."
         ) from error
-    return result.data or []
+    return response.data or []
 
 
 def _local_timestamp() -> str:
@@ -168,10 +169,28 @@ def _record_row(answers: dict, response_id: str, edit_token: str, timestamp: str
     return row
 
 
-def _record_from_row(row: dict) -> dict:
-    record = dict(row.get("record") or {})
+def _json_object(value) -> dict:
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as error:
+            raise StorageError("Supabase returned invalid JSON data.") from error
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _record_from_row(row: dict) -> dict | None:
+    if not isinstance(row, dict):
+        return None
+
+    record = _json_object(row.get("record"))
     record.pop("Edit Token", None)
-    record["Response ID"] = str(row["response_id"])
+    response_id = row.get("response_id")
+    if response_id is not None:
+        record["Response ID"] = str(response_id)
+    elif "Response ID" not in record:
+        return None
     return record
 
 
@@ -183,7 +202,12 @@ def get_response_records() -> list[dict]:
         .select("response_id,record")
         .order("created_at", desc=False)
     )
-    return [_record_from_row(row) for row in rows]
+    records = []
+    for row in rows:
+        record = _record_from_row(row)
+        if record is not None:
+            records.append(record)
+    return records
 
 
 @st.cache_data(ttl=30)
@@ -194,18 +218,20 @@ def get_tracker_records() -> list[dict]:
         .select("response_id,record,follow_up")
         .order("created_at", desc=False)
     )
-    return [
-        dict(
-            zip(
-                TRACKER_HEADERS,
-                _tracker_row(
-                    _record_from_row(row),
-                    row.get("follow_up") or {},
-                ),
+    records = []
+    for row in rows:
+        record = _record_from_row(row)
+        if record is None:
+            continue
+        records.append(
+            dict(
+                zip(
+                    TRACKER_HEADERS,
+                    _tracker_row(record, _json_object(row.get("follow_up"))),
+                )
             )
         )
-        for row in rows
-    ]
+    return records
 
 
 def get_response_by_edit_token(edit_token: str):
@@ -216,12 +242,12 @@ def get_response_by_edit_token(edit_token: str):
         .eq("edit_token", edit_token)
         .limit(1)
     )
-    if not rows:
-        return None
-
-    record = _record_from_row(rows[0])
-    record["Edit Token"] = edit_token
-    return record
+    for row in rows:
+        record = _record_from_row(row)
+        if record is not None:
+            record["Edit Token"] = edit_token
+            return record
+    return None
 
 
 def save_submission(
@@ -242,11 +268,15 @@ def save_submission(
             .eq("edit_token", edit_token)
             .limit(1)
         )
-        if not existing_rows:
+        existing_row = next(
+            (row for row in existing_rows if isinstance(row, dict)),
+            None,
+        )
+        if existing_row is None:
             raise StorageError("This edit link is invalid or has expired.")
-        existing_record = existing_rows[0].get("record") or {}
+        existing_record = _json_object(existing_row.get("record"))
         timestamp = existing_record.get("Timestamp") or timestamp
-        follow_up = existing_rows[0].get("follow_up") or follow_up
+        follow_up = _json_object(existing_row.get("follow_up")) or follow_up
 
     record_values = _record_row(answers, response_id, edit_token, timestamp)
     record = dict(zip(FORM_HEADERS, record_values))
@@ -266,7 +296,7 @@ def save_submission(
             .eq("edit_token", edit_token)
             .select("response_id")
         )
-        if not updated_rows:
+        if not any(isinstance(row, dict) for row in updated_rows):
             raise StorageError("This edit link is invalid or has expired.")
     else:
         _execute(
