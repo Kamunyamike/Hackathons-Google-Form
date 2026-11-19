@@ -69,7 +69,14 @@ st.markdown(
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stRadio"] > div,
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCheckbox"] > label { width:100%; }
     [data-testid="stVerticalBlockBorderWrapper"] input[type="text"],
-    [data-testid="stVerticalBlockBorderWrapper"] input[type="email"] { color:#11152d; }
+    [data-testid="stVerticalBlockBorderWrapper"] input[type="email"] {
+        color:#11152d !important;
+        -webkit-text-fill-color:#11152d;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] input::placeholder {
+        color:#656b7d;
+        opacity:1;
+    }
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stRadio"] label:has(input:checked),
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCheckbox"] label:has(input:checked) {
         border-color:var(--orange); box-shadow:0 0 0 1px var(--orange);
