@@ -14,6 +14,7 @@ from lib.sheets import (
     get_tracker_records,
     rebuild_tracker,
 )
+from lib.theme import apply_input_styles
 
 st.set_page_config(
     page_title="AfriCDSA Opportunities Admin",
@@ -36,6 +37,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+apply_input_styles()
 
 st.title("AfriCDSA Opportunities Admin")
 

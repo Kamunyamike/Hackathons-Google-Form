@@ -92,29 +92,81 @@ def _retry_api(operation):
             ) from error
 
 
+REQUIRED_SERVICE_ACCOUNT_KEYS = (
+    "type",
+    "project_id",
+    "private_key_id",
+    "private_key",
+    "client_email",
+    "token_uri",
+)
+
+
+def _missing_secrets() -> list[str]:
+    """Return the dotted names of required secrets that are absent or empty."""
+    missing = []
+    try:
+        service_account = st.secrets.get("gcp_service_account")
+    except FileNotFoundError:
+        service_account = None
+    if not service_account:
+        missing.append("[gcp_service_account]")
+    else:
+        missing += [
+            f"gcp_service_account.{key}"
+            for key in REQUIRED_SERVICE_ACCOUNT_KEYS
+            if not str(service_account.get(key, "")).strip()
+        ]
+    try:
+        sheets = st.secrets.get("sheets") or {}
+    except FileNotFoundError:
+        sheets = {}
+    if not str(sheets.get("spreadsheet_id", "")).strip():
+        missing.append("sheets.spreadsheet_id")
+    return missing
+
+
 @st.cache_resource
 def get_spreadsheet():
-    try:
-        service_account = dict(st.secrets["gcp_service_account"])
-        spreadsheet_id = st.secrets["sheets"]["spreadsheet_id"]
-    except KeyError as error:
+    missing = _missing_secrets()
+    if missing:
         raise SheetsError(
-            "Google Sheets is not configured. Add the required secrets in Streamlit settings."
-        ) from error
+            "Google Sheets is not configured. In Streamlit Cloud open "
+            "App settings → Secrets and add: " + ", ".join(missing) + "."
+        )
+
+    service_account = dict(st.secrets["gcp_service_account"])
+    # Keys pasted with literal "\n" sequences instead of real line breaks fail to parse.
+    service_account["private_key"] = service_account["private_key"].replace("\\n", "\n")
+    spreadsheet_id = str(st.secrets["sheets"]["spreadsheet_id"]).strip()
+    client_email = service_account.get("client_email", "the service account")
 
     try:
         credentials = Credentials.from_service_account_info(service_account, scopes=SCOPES)
         client = gspread.authorize(credentials)
         spreadsheet = _retry_api(lambda: client.open_by_key(spreadsheet_id))
-        if spreadsheet.title != SPREADSHEET_TITLE:
-            raise SheetsError(
-                f"The configured spreadsheet must be named '{SPREADSHEET_TITLE}'."
-            )
-        return spreadsheet
+    except PermissionError as error:
+        raise SheetsError(
+            f"The service account cannot open the spreadsheet. Share the Google Sheet "
+            f"with {client_email} as an Editor, then reboot the app."
+        ) from error
+    except gspread.exceptions.SpreadsheetNotFound as error:
+        raise SheetsError(
+            "Spreadsheet not found. Check sheets.spreadsheet_id (the long ID between "
+            f"/d/ and /edit in the sheet URL) and that it is shared with {client_email}."
+        ) from error
     except (GoogleAuthError, ValueError) as error:
         raise SheetsError(
-            "Google Sheets authentication failed. Check the service-account secrets."
+            "Google Sheets authentication failed. Check the gcp_service_account secrets, "
+            "especially private_key (keep the BEGIN/END lines and use triple quotes)."
         ) from error
+
+    if spreadsheet.title != SPREADSHEET_TITLE:
+        raise SheetsError(
+            f"The configured spreadsheet is named '{spreadsheet.title}' but must be "
+            f"named '{SPREADSHEET_TITLE}'. Rename the Google Sheet and reboot the app."
+        )
+    return spreadsheet
 
 
 def _get_worksheet(title: str, rows: int = 1000, cols: int = 40):

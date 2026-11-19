@@ -35,6 +35,7 @@ from lib.form import (
     validate_page1,
 )
 from lib.sheets import SheetsError, get_response_by_edit_token, save_submission
+from lib.theme import apply_input_styles
 
 st.set_page_config(
     page_title=TITLE,
@@ -68,28 +69,6 @@ st.markdown(
     }
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stRadio"] > div,
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCheckbox"] > label { width:100%; }
-    [data-testid="stTextInput"] [data-baseweb="input"],
-    [data-testid="stTextInput"] [data-baseweb="input"] > div {
-        background:var(--navy) !important;
-        border-radius:10px;
-    }
-    [data-testid="stTextInput"]:focus-within [data-baseweb="input"] {
-        border-color:var(--orange) !important;
-        box-shadow:0 0 0 1px var(--orange);
-    }
-    [data-testid="stTextInput"] [data-baseweb="input"] {
-        border:1px solid #596078 !important;
-    }
-    [data-testid="stTextInput"] input[type="text"],
-    [data-testid="stTextInput"] input[type="email"] {
-        background:transparent !important;
-        color:#fff !important;
-        -webkit-text-fill-color:#fff;
-    }
-    [data-testid="stTextInput"] input::placeholder {
-        color:#b5bad0;
-        opacity:1;
-    }
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stRadio"] label:has(input:checked),
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCheckbox"] label:has(input:checked) {
         border-color:var(--orange); box-shadow:0 0 0 1px var(--orange);
@@ -97,6 +76,7 @@ st.markdown(
     [data-testid="stProgressBar"] > div > div { background:var(--orange); }
     div.stButton > button { border-radius:12px; min-height:48px; font-weight:700; }
     div.stButton > button[kind="primary"] { background:var(--orange); color:#11152d; border:0; width:100%; }
+    div.stButton > button[kind="primary"] p { color:#11152d !important; }
     a[data-testid="stLinkButton"] { border-radius:12px; min-height:48px; }
     a.whatsapp-link { display:block; text-align:center; text-decoration:none; padding:.8rem 1rem;
         margin:.5rem 0; border-radius:12px; min-height:48px; box-sizing:border-box;
@@ -112,6 +92,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+apply_input_styles()
 
 
 def _header():
