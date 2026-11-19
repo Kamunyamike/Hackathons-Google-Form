@@ -34,7 +34,7 @@ from lib.form import (
     validate_event,
     validate_page1,
 )
-from lib.sheets import SheetsError, get_response_by_edit_token, save_submission
+from lib.storage import SheetsError, get_response_by_edit_token, save_submission
 from lib.theme import apply_input_styles
 
 st.set_page_config(

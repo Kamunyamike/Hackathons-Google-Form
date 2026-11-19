@@ -6,7 +6,7 @@ import streamlit as st
 
 from lib.form import OPPORTUNITY_OPTIONS
 from lib.pdf import receipt_pdf, summary_pdf
-from lib.sheets import (
+from lib.storage import (
     FORM_HEADERS,
     SheetsError,
     TRACKER_HEADERS,
@@ -173,13 +173,13 @@ if records:
 else:
     st.info("No registrations yet.")
 
-if st.button("Rebuild Tracker sheet", type="primary"):
+if st.button("Refresh tracker", type="primary"):
     try:
         rebuilt_count = rebuild_tracker()
     except SheetsError as error:
         st.error(str(error))
     else:
-        st.success(f"Tracker sheet rebuilt for {rebuilt_count} responses.")
+        st.success(f"Tracker refreshed for {rebuilt_count} responses.")
         st.rerun()
 
 if st.button("Log out"):
