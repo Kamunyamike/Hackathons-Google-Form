@@ -68,13 +68,26 @@ st.markdown(
     }
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stRadio"] > div,
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCheckbox"] > label { width:100%; }
-    [data-testid="stVerticalBlockBorderWrapper"] input[type="text"],
-    [data-testid="stVerticalBlockBorderWrapper"] input[type="email"] {
-        color:#11152d !important;
-        -webkit-text-fill-color:#11152d;
+    [data-testid="stTextInput"] [data-baseweb="input"],
+    [data-testid="stTextInput"] [data-baseweb="input"] > div {
+        background:var(--navy) !important;
+        border-radius:10px;
     }
-    [data-testid="stVerticalBlockBorderWrapper"] input::placeholder {
-        color:#656b7d;
+    [data-testid="stTextInput"]:focus-within [data-baseweb="input"] {
+        border-color:var(--orange) !important;
+        box-shadow:0 0 0 1px var(--orange);
+    }
+    [data-testid="stTextInput"] [data-baseweb="input"] {
+        border:1px solid #596078 !important;
+    }
+    [data-testid="stTextInput"] input[type="text"],
+    [data-testid="stTextInput"] input[type="email"] {
+        background:transparent !important;
+        color:#fff !important;
+        -webkit-text-fill-color:#fff;
+    }
+    [data-testid="stTextInput"] input::placeholder {
+        color:#b5bad0;
         opacity:1;
     }
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stRadio"] label:has(input:checked),
