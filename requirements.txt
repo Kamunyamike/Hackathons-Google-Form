@@ -1,0 +1,7 @@
+streamlit
+gspread
+google-auth
+pandas
+openpyxl
+fpdf2
+tzdata
